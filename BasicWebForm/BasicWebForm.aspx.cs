@@ -27,15 +27,18 @@ namespace BasicWebForm
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     conn.Open();
-                    using (SqlCommand command = new SqlCommand("select id, name from Names", conn))
+                    using (SqlCommand command = new SqlCommand("select id, name from Names order by id", conn))
                     {
                         SqlDataReader reader = command.ExecuteReader();
                         if (reader.HasRows)
                         {
+                            int currentId = 0;
                             while (reader.Read())
                             {
-                                Names.Add(new Models.Person(reader.GetInt32(0), reader.GetString(1)));
+                                currentId = reader.GetInt32(0);
+                                Names.Add(new Models.Person(currentId, reader.GetString(1), Models.RecordType.Edit));
                             }
+                            Names.Add(new Models.Person(currentId + 1, string.Empty, Models.RecordType.Add));
                         }
                         reader.Close();
                     }
@@ -49,5 +52,21 @@ namespace BasicWebForm
             return Names;
         }
 
+        protected void grdRecords_RowDeleting(object sender, GridViewDeleteEventArgs e) 
+        {
+            //Get the row index from "e"
+            //Remove that row from the database
+            //Determine how to update the grid.
+        }
+
+        protected void grdRecords_RowUpdating(object sender, GridViewCommandEventArgs e)
+        {
+            //Get the row index from "e"
+            //How to get the text in the textbox from the grid (maybe use the row index)
+            //Validate the field to update if its not valid then put the error message into a label on the form somewhere
+            //Identify the record to update then update in the database
+            //If this is a record to add then insert the record
+            //Determine how to update the grid.
+        }
     }
 }
