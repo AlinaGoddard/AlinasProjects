@@ -13,8 +13,22 @@
                     alert('Name must have at least ' + (minLength - 1).toString() + ' character.');
             });
         });
+        function DeleteConfirm(id) {
+            id = id.substring(id.lastIndexOf("_") + 1, id.length);
+            var rowsCount = <%=grdRecords.Rows.Count %> -1;
+            if(id.toString() == rowsCount.toString())
+                alert("This row has not been added yet.");
+            else
+            {
+                if (confirm("Are you sure you want to delete this name?")) {
+                    //document.getElementById('lnk_Remove').click();
+                    return true;
+                }
+            }
+            return false;
+        }
     </script>
-    <asp:GridView ID="grdRecords" runat="server" AutoGenerateColumns="false" OnRowDeleting="grdRecords_RowDeleting" OnRowCommand="grdRecords_RowUpdating" >
+    <asp:GridView ID="grdRecords" runat="server" AutoGenerateColumns="false" OnRowCommand="grdRecords_RowUpdating" >
         <Columns>
             <asp:BoundField DataField="Id" HeaderText="Id" />
             <asp:TemplateField HeaderText="Name">
@@ -24,8 +38,12 @@
                     <asp:RegularExpressionValidator ForeColor="Red" ControlToValidate="txtName" ID="RegularExpressionValidator" ValidationExpression="^[a-zA-Z0-9'@&#.\s]{2,}$" runat="server" ErrorMessage="!"></asp:RegularExpressionValidator>
                 </ItemTemplate>
             </asp:TemplateField>
+            <asp:TemplateField>
+                <ItemTemplate>
+                    <asp:LinkButton ID="lnk_Remove" runat="server" Text="Delete" CommandName="Delete" CommandArgument='<%# Eval("ID").ToString()%>'></asp:LinkButton>
+                </ItemTemplate>
+            </asp:TemplateField>
             <asp:ButtonField runat="server" DataTextField="Type" ButtonType="Button" DataTextFormatString="{0}" CommandName="Update" />
-            <asp:CommandField ShowDeleteButton="True" />  
         </Columns>
         <RowStyle BackColor="#EFF3FB" />
         <HeaderStyle BackColor="#507CD1" Font-Bold="True" ForeColor="White" HorizontalAlign="Center"  />
