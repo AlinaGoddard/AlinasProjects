@@ -5,7 +5,7 @@
     <script>  
         $(function () {
             $('table[id*=grdRecords] input[id*=txtName]').blur(function () {
-                var itemValue = $('table[id*=grdRecords] input[id*=txtName]').val();
+                var itemValue = $(this).val();
                 var minLength = 2;
                 if (!itemValue)
                     alert('Name is a required field.');
@@ -16,19 +16,16 @@
         function DeleteConfirm(id) {
             id = id.substring(id.lastIndexOf("_") + 1, id.length);
             var rowsCount = <%=grdRecords.Rows.Count %> -1;
-            if(id.toString() == rowsCount.toString())
+            if (id.toString() == rowsCount.toString())
                 alert("This row has not been added yet.");
-            else
-            {
+            else {
                 if (confirm("Are you sure you want to delete this name?")) {
-                    //document.getElementById('lnk_Remove').click();
-                    return true;
+                    window.location.replace("BasicWebForm.aspx?id=" + id);
                 }
             }
-            return false;
         }
     </script>
-    <asp:GridView ID="grdRecords" runat="server" AutoGenerateColumns="false" OnRowCommand="grdRecords_RowUpdating" >
+    <asp:GridView ID="grdRecords" runat="server" AutoGenerateColumns="false" OnRowEditing="grdRecords_RowEditing" EnableViewState="false">
         <Columns>
             <asp:BoundField DataField="Id" HeaderText="Id" />
             <asp:TemplateField HeaderText="Name">
@@ -38,16 +35,15 @@
                     <asp:RegularExpressionValidator ForeColor="Red" ControlToValidate="txtName" ID="RegularExpressionValidator" ValidationExpression="^[a-zA-Z0-9'@&#.\s]{2,}$" runat="server" ErrorMessage="!"></asp:RegularExpressionValidator>
                 </ItemTemplate>
             </asp:TemplateField>
+            <asp:ButtonField runat="server" DataTextField="Type" ButtonType="Button" DataTextFormatString="{0}" CommandName="Edit" />
             <asp:TemplateField>
                 <ItemTemplate>
-                    <asp:LinkButton ID="lnk_Remove" runat="server" Text="Delete" CommandName="Delete" CommandArgument='<%# Eval("ID").ToString()%>'></asp:LinkButton>
+                    <asp:Button ID="lnk_Remove" runat="server" Text="Delete" OnClientClick="DeleteConfirm(id)"></asp:Button>
                 </ItemTemplate>
             </asp:TemplateField>
-            <asp:ButtonField runat="server" DataTextField="Type" ButtonType="Button" DataTextFormatString="{0}" CommandName="Update" />
         </Columns>
         <RowStyle BackColor="#EFF3FB" />
         <HeaderStyle BackColor="#507CD1" Font-Bold="True" ForeColor="White" HorizontalAlign="Center"  />
     </asp:GridView>
-    <!--Delete validation maybe a message box asking if they want to delete JQuery then maybe ajax to call the delete routine-->
-<!--Add or Update validation -->
+    <asp:Label runat="server" ID="lblErrors" ForeColor="Red"></asp:Label>
 </asp:Content>

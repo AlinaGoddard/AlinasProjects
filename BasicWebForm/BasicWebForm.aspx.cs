@@ -31,7 +31,10 @@ namespace BasicWebForm
             List<Models.Person> people = new List<Models.Person>();
             try
             {
-                people = GetNames();
+                string rowIdDelete = Request.QueryString["id"];                
+                if (!string.IsNullOrEmpty(rowIdDelete))
+                    DeleteRecord(GetPersonId(rowIdDelete));
+                people = GetNames();                
                 grdRecords.DataSource = people;
                 grdRecords.DataBind();
                 LoggerService.WriteLog(MethodBase.GetCurrentMethod().DeclaringType.Name,
@@ -42,6 +45,11 @@ namespace BasicWebForm
                 LoggerService.WriteError(MethodBase.GetCurrentMethod().DeclaringType.Name,
                     MethodBase.GetCurrentMethod().Name, ex, "Number of people = {0}.", (people.Count()-1).ToString());
             }
+        }
+
+        private string GetPersonId(string rowId)
+        {
+            return ((List<Models.Person>)Session["Names"]).Skip(Convert.ToInt32(rowId)).First().Id.ToString();
         }
 
         private List<Models.Person> GetNames()
@@ -55,9 +63,9 @@ namespace BasicWebForm
                     using (SqlCommand command = new SqlCommand("select id, name from Names order by id", conn))
                     {
                         SqlDataReader reader = command.ExecuteReader();
+                        int currentId = 0;
                         if (reader.HasRows)
-                        {
-                            int currentId = 0;
+                        {                           
                             while (reader.Read())
                             {
                                 string name = reader.GetString(1);
@@ -65,9 +73,9 @@ namespace BasicWebForm
                                 Names.Add(new Models.Person(currentId, name, Models.RecordType.Edit));
                                 LoggerService.WriteLog(MethodBase.GetCurrentMethod().DeclaringType.Name,
                                     MethodBase.GetCurrentMethod().Name, "Person Id={0}, Name={1}.", currentId.ToString(), name);
-                            }
-                            Names.Add(new Models.Person(currentId + 1, string.Empty, Models.RecordType.Add));
+                            }                           
                         }
+                        Names.Add(new Models.Person(currentId + 1, string.Empty, Models.RecordType.Add));
                         reader.Close();
                     }
                     conn.Close();
@@ -78,33 +86,125 @@ namespace BasicWebForm
                 LoggerService.WriteError(MethodBase.GetCurrentMethod().DeclaringType.Name,
                     MethodBase.GetCurrentMethod().Name, ex, "Exception Reading Names.");
             }
+            Session["Names"] = Names;
             return Names;
         }
 
-        //Get the row index from "e"
-        //Remove that row from the database
-        //Determine how to update the grid.
-
-        protected void grdRecords_RowUpdating(object sender, GridViewCommandEventArgs e)
+        private bool NameIsValid(string name)
         {
-            //if (e.CommandName == "Update")
-            //{
-            //    int id = Convert.ToInt32(e.CommandArgument);
-            //    //string name = grdRecords.Rows[id]
-            //    //TODO: Update the name
+            string message = string.Empty;
+            if (string.IsNullOrEmpty(name))
+                message = "Name is a required field.";
+            else if (name.Trim().Length < 2)
+                message = "Name must have at least 1 character.";
 
-            //    //TODO: I'm not sure why its not getting the up to date name
-            //    string newName = ((TextBox)grdRecords.Rows[id].FindControl("txtName")).Text; 
+            lblErrors.Text = message;
+            if (string.IsNullOrEmpty(message))
+            {
+                LoggerService.WriteLog(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                    MethodBase.GetCurrentMethod().Name, "Name={0} is valid.", name);
+                return true;
+            }
+            else 
+            {
+                LoggerService.WriteLog(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                    MethodBase.GetCurrentMethod().Name, "Name={0} is not valid, message={1}.", name, message);
+                return false;
+            }
+        }
 
-            //    //grdRecords.DataSource = GetNames();
-            //    //grdRecords.DataBind();
-            //}
+        protected void grdRecords_RowEditing(object sender, GridViewEditEventArgs e)
+        {
+            try 
+            {
+                int id = e.NewEditIndex;
+                string newName = ((TextBox)grdRecords.Rows[id].FindControl("txtName")).Text;
+                if (NameIsValid(newName))
+                {
+                    string type = ((Button)grdRecords.Rows[id].Controls[2].Controls[0]).Text;
+                    if (type == "Edit")
+                        UpdateName(newName, GetPersonId(id.ToString()));
+                    else if (type == "Add")
+                        InsertName(newName);
+                }
+                grdRecords.EditIndex = ((List<Models.Person>)Session["Names"]).Count + 4;
+                grdRecords.DataSource = GetNames();
+                grdRecords.DataBind();
+            }
+            catch (Exception ex)
+            {
+                LoggerService.WriteError(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                    MethodBase.GetCurrentMethod().Name, ex, string.Empty);
+            }           
+        }
 
-            //How to get the text in the textbox from the grid (maybe use the row index)
-            //Validate the field to update if its not valid then put the error message into a label on the form somewhere
-            //Identify the record to update then update in the database
-            //If this is a record to add then insert the record
-            //Determine how to update the grid.
+        private void UpdateName(string newName, string id)
+        {
+            try 
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    using (SqlCommand command = new SqlCommand("update Names set name = '" + newName + "' where id=" + id, conn))
+                    {
+                        command.ExecuteNonQuery();
+                        LoggerService.WriteLog(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                            MethodBase.GetCurrentMethod().Name, "Update Complete, Name={0} and Id={1}.", newName, id);
+                    }
+                    conn.Close();
+                }               
+            }
+            catch (Exception ex)
+            {
+                LoggerService.WriteError(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                    MethodBase.GetCurrentMethod().Name, ex, "Exception Updating Names.");
+            }
+        }
+
+        private void InsertName(string name)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    using (SqlCommand command = new SqlCommand("insert Names(name) values('" + name + "')", conn))
+                    {
+                        command.ExecuteNonQuery();
+                        LoggerService.WriteLog(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                            MethodBase.GetCurrentMethod().Name, "Insert Complete, Name={0}.", name);
+                    }
+                    conn.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerService.WriteError(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                    MethodBase.GetCurrentMethod().Name, ex, "Exception Inserting Names.");
+            }
+        }
+
+        private void DeleteRecord(string id)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    using (SqlCommand command = new SqlCommand("delete Names where id=" + id, conn))
+                    {
+                        command.ExecuteNonQuery();
+                        LoggerService.WriteLog(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                            MethodBase.GetCurrentMethod().Name, "Delete Complete, Id={0}.", id);
+                    }
+                    conn.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerService.WriteError(MethodBase.GetCurrentMethod().DeclaringType.Name,
+                    MethodBase.GetCurrentMethod().Name, ex, "Exception Deleting Records.");
+            }           
         }
     }
 }
