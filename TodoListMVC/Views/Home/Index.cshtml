@@ -1,0 +1,162 @@
+﻿@model IEnumerable<TodoListMVC.Models.TodoItem>
+@{
+    ViewBag.Title = "My Todo List";
+    var grid = new WebGrid(Model); 
+}
+<script type="text/javascript" src="~/Scripts/jquery-1.8.24.min.js"></script>
+<script type="text/javascript" src="~/Scripts/jquery-1.8.24.js"></script>
+<script type="text/javascript" src="~/Scripts/jquery-1.8.2.min.js"></script>
+<script type="text/javascript" src="~/Scripts/jquery-1.8.2.js"></script>
+<header>
+    <h1>@ViewBag.Title</h1>
+</header>
+
+<style type="text/css">
+    .webGrid {
+        margin: 4px;
+        border-collapse: collapse;
+        width: 500px;
+        background-color: #B4CFC3;
+    }
+
+    .header {
+        background-color: #507CD1;
+        font-weight: bold;
+        text-decoration-color: white;
+        color: white;
+        white-space: nowrap;
+    }
+
+    .webGrid th, .webGrid td {
+        border: 1px solid #C0C0C0;
+        padding: 5px;
+        white-space: nowrap;
+    }
+
+    .alt {
+        background-color: #E4E9F5;
+        color: #000;
+    }
+
+    .description {
+        width: auto;
+    }
+
+    .select {
+        background-color: #71857C;
+    }
+
+    .ui-datepicker-trigger { 
+        position:relative;
+        height: 40px;
+        vertical-align: bottom;
+    }
+</style> 
+
+<script>
+    function ValidateTaskName(taskName)
+    {
+        var minLength = 2;
+        if (!taskName)
+            return "Task Name is a required field.";
+        else if (taskName.length < minLength)
+            return "Task Name must have at least " + (minLength - 1).toString() + " characters.";
+        return "";
+    }
+    function isPositiveInteger(str) {
+        var n = ~~Number(str);
+        return String(n) === str && n >= 0;
+    }
+    function ValidatePriority(priority)
+    {
+        if (isPositiveInteger(priority) == false)
+            return "You must enter a number for the priority.";
+        return "";
+    }
+    $(document).ready(function (e) {
+        $('.taskNamecss').blur(function () {     
+            document.getElementById("lblTaskNameError").innerHTML = ValidateTaskName($(this).val());
+        });
+        $('.prioritycss').blur(function () {
+            document.getElementById("lblPriorityError").innerHTML = ValidatePriority($(this).val());
+        });
+        $('.calendarcss').datepicker({
+            showOn: "button",
+            buttonImage: "images/calendar-icon.png",
+            buttonImageOnly: true,
+            buttonText: "Select date"
+        });
+        $('.editcss').on('click', function (e) {
+            e.preventDefault();
+
+            var taskName = $("input[id='t_" + this.id + "'][name='txtTaskName']").val();
+            var priority = $("input[id='p_" + this.id + "'][name='txtPriority']").val();
+            var dueDate = $("input[id='d_" + this.id + "'][name='txtDueDate']").val();
+
+            SendToController('/Home/Edit', taskName, priority, dueDate, this.id);
+        });
+        $('.deletecss').on('click', function (e) {
+            e.preventDefault();
+            if (confirm("Are you sure you want to delete this item?")) 
+            {
+                $.ajax({
+                    type: "POST",
+                    url: '/Home/Delete',
+                    data: "todoId=" + this.id
+                });
+                location.reload();
+            }
+        });     
+    });
+    function SendToController(serviceURL, taskName, priority, dueDate, id)
+    {
+        var errorMsg = (ValidateTaskName(taskName) == "") ? "" : ValidateTaskName(taskName) + "<br />";
+        errorMsg += (ValidatePriority(priority) == "") ? "" : ValidatePriority(priority) + "<br />";
+        errorMsg += (dueDate == "") ? "You must select a date. <br />" : "";
+
+        document.getElementById("lblError").innerHTML = errorMsg;
+
+        if (errorMsg == "")
+        {
+            $.ajax({
+                type: "POST",
+                url: serviceURL,
+                data: "taskName=" + taskName + "&priority=" + priority + "&dueDate=" + dueDate + "&todoId=" + id
+            });
+            location.reload();
+        }
+    }
+    function AddItem() {
+        var taskName = document.getElementById("txtNewTaskName").value;
+        var priority = document.getElementById("txtNewPriority").value;
+        var dueDate = document.getElementById("txtNewDueDate").value;
+
+        SendToController('/Home/Add', taskName, priority, dueDate, null);
+    }
+</script>
+
+<table style="background-color: beige">
+    <tr><td colspan="2" style="font-weight: bold">Add Todo Item</td></tr>
+    <tr><td>Task Name:</td><td><input type="text" id="txtNewTaskName" /></td></tr>
+    <tr><td>Priority:</td><td><input type="text" id="txtNewPriority" /></td></tr>
+    <tr><td>Due Date:</td><td><input type="text" id="txtNewDueDate" class="calendarcss" disabled="disabled"  /></td></tr>
+    <tr><td colspan="2" style="text-align:right"><input type="button" id="btnAdd" value="Add" onclick="AddItem()" /></td></tr>
+</table>
+<div id="lblError" style="color: red;"></div>
+<div id="main-content">
+    @grid.GetHtml(tableStyle: "webGrid",
+            headerStyle: "header",
+            alternatingRowStyle: "alt",
+            selectedRowStyle: "select",
+            columns: grid.Columns(
+                grid.Column("TodoId", "Todo Id"),
+                grid.Column("TaskName", "Task Name", format: (item) => Html.TextBox("txtTaskName", (object)item.TaskName, new { @class = "taskNamecss", @id = "t_" + item.TodoId })),
+                grid.Column("Priority", "Priority", format: (item) => Html.TextBox("txtPriority", (object)item.Priority, new { @class = "prioritycss", @id = "p_" +item.TodoId })),
+                grid.Column("DueDate", "Due Date", format: (item) => Html.TextBox("txtDueDate", (object)item.DueDate.ToString("MM/dd/yyyy"), new { @class = "calendarcss", @style = "width:160px;", @disabled = "disabled", @id = "d_" + item.TodoId })),
+                grid.Column("", "", canSort: false, format: (item) => Html.ActionLink("Edit", "Edit", null, new {  @class = "editcss", @id=item.todoId })),
+                grid.Column("", "", canSort: false, format: (item) => Html.ActionLink("Delete", "Delete", null, new { @class = "deletecss", @id = item.todoId }))
+            )
+    )
+</div>
+<div id="lblTaskNameError" style="color: red;"></div>
+<div id="lblPriorityError" style="color: red;"></div>
